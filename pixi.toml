@@ -1,0 +1,32 @@
+[workspace]
+name = "yakuza-0-headtracking"
+version = "0.0.0"
+description = "Head tracking mod for Yakuza 0 using CameraUnlock shared library"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tasks]
+sync = { cmd = "git submodule update --remote cameraunlock-core" }
+
+setup = { cmd = """
+    powershell -Command "if (-not (Test-Path 'build')) { cmake -B build -G 'Visual Studio 17 2022' -A x64 } else { Write-Host 'Build directory exists, skipping setup' -ForegroundColor Yellow }"
+""" }
+
+build = { cmd = "cmake --build build --config Release", depends-on = ["setup"] }
+
+test = { cmd = "ctest --test-dir build -C Release --output-on-failure", depends-on = ["build"] }
+
+clean = { cmd = """
+    powershell -Command "if (Test-Path 'build') { Remove-Item 'build' -Recurse -Force }; if (Test-Path 'bin') { Remove-Item 'bin' -Recurse -Force }; Write-Host 'Build artifacts cleaned' -ForegroundColor Green"
+""" }
+
+update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
+
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+
+install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1", depends-on = ["build"] }
+uninstall = "scripts\\uninstall.cmd /y"
+
+release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1" }
+
+[dependencies]

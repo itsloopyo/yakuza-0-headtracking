@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Setup Visual Studio environment
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            Write-Host "::error::Tag format invalid. Use semantic versioning: v1.2.3"
+            exit 1
+          }
+          $version = $matches[1]
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: Validate version matches CMakeLists.txt
+        shell: pwsh
+        run: |
+          $cmake = Get-Content CMakeLists.txt -Raw
+          if ($cmake -notmatch 'project\([^)]*VERSION\s+(\d+\.\d+\.\d+)') {
+            Write-Host "::error::Could not find project VERSION in CMakeLists.txt"
+            exit 1
+          }
+          $cmakeVersion = $matches[1]
+          $tagVersion = "${{ steps.version.outputs.version }}"
+
+          Write-Host "CMakeLists.txt version: $cmakeVersion"
+          Write-Host "Tag version: $tagVersion"
+
+          if ($cmakeVersion -ne $tagVersion) {
+            Write-Host "::error::Version mismatch! Tag is v$tagVersion but CMakeLists.txt has $cmakeVersion"
+            exit 1
+          }
+
+          Write-Host "Version matches!" -ForegroundColor Green
+
+      - name: Configure CMake (x64)
+        shell: pwsh
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build Release
+        shell: pwsh
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        shell: pwsh
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          $asi = "bin/Release/Yakuza0HeadTracking.asi"
+          if (-not (Test-Path $asi)) {
+            Write-Host "::error::Missing $asi"
+            exit 1
+          }
+          $size = [math]::Round((Get-Item $asi).Length / 1KB, 2)
+          Write-Host "$asi ($size KB)" -ForegroundColor Green
+
+      - name: Package installer
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Packaging failed"
+            exit 1
+          }
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          & cameraunlock-core/scripts/generate-release-notes.ps1 `
+            -Version "${{ steps.version.outputs.version }}" `
+            -ArtifactPaths @('src/', 'camera_hook.asm', 'CMakeLists.txt', 'cameraunlock-core/', 'scripts/install.cmd', 'scripts/uninstall.cmd') `
+            -ProjectName "Yakuza 0 Head Tracking"
+
+      - name: Find release ZIPs
+        id: zips
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $installerZip = "release/Yakuza0HeadTracking-v$version-installer.zip"
+          $nexusZip = "release/Yakuza0HeadTracking-v$version-nexus.zip"
+
+          if (-not (Test-Path $installerZip)) {
+            Write-Host "::error::Installer ZIP not found at $installerZip"
+            exit 1
+          }
+          if (-not (Test-Path $nexusZip)) {
+            Write-Host "::error::Nexus ZIP not found at $nexusZip"
+            exit 1
+          }
+
+          echo "installer_zip=$installerZip" >> $env:GITHUB_OUTPUT
+          echo "nexus_zip=$nexusZip" >> $env:GITHUB_OUTPUT
+          Write-Host "Installer ZIP: $installerZip" -ForegroundColor Green
+          Write-Host "Nexus ZIP:     $nexusZip" -ForegroundColor Green
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $installerZip = "${{ steps.zips.outputs.installer_zip }}"
+          $nexusZip = "${{ steps.zips.outputs.nexus_zip }}"
+
+          Write-Host "Creating GitHub Release for $tag..." -ForegroundColor Cyan
+
+          gh release create $tag `
+            --title "Yakuza 0 Head Tracking $tag" `
+            --notes-file "release-notes.txt" `
+            $installerZip `
+            $nexusZip
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Failed to create GitHub release"
+            exit 1
+          }
+
+          Write-Host "Release created: https://github.com/${{ github.repository }}/releases/tag/$tag" -ForegroundColor Cyan
