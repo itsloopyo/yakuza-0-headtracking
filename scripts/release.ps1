@@ -2,7 +2,10 @@
 #Requires -Version 5.1
 param(
     [Parameter(Position = 0)]
-    [string]$Version = ''
+    [string]$Version = '',
+    # Ship a release even when there are no user-facing commits since the
+    # last tag (writes a maintenance changelog entry instead of aborting).
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -22,6 +25,22 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $repoRoot
 
 Import-Module (Join-Path $repoRoot 'cameraunlock-core\powershell\ReleaseWorkflow.psm1') -Force
+
+# Mirrors New-ChangelogFromCommits' insertion so a -Force maintenance entry
+# lands in the same place with the same shape.
+function Add-MaintenanceChangelogEntry {
+    param([string]$Path, [string]$NewVersion)
+    $date = Get-Date -Format 'yyyy-MM-dd'
+    $entry = "## [$NewVersion] - $date`n`n### Changed`n`n- Maintenance release (no user-facing changes).`n`n"
+    $changelog = Get-Content $Path -Raw
+    if ($changelog -match '(?s)(# Changelog.*?)(## \[)') {
+        $changelog = $changelog -replace '(?s)(# Changelog.*?\n\n)', "`$1$entry"
+    } else {
+        $changelog = $changelog -replace '(?s)(# Changelog.*?\n)', "`$1$entry"
+    }
+    $changelog = $changelog.TrimEnd() + "`n"
+    Set-Content $Path $changelog -NoNewline
+}
 
 # Canonical version source: CMakeLists.txt project(... VERSION X.Y.Z).
 # pixi.toml and scripts/install.cmd MOD_VERSION mirror it.
@@ -44,6 +63,36 @@ if (-not (Test-CleanGitStatus)) { throw "Working tree is not clean. Commit or st
 
 $tag = "v$newVersion"
 if (Test-GitTagExists -Tag $tag) { throw "Tag $tag already exists." }
+
+# Changelog from commits since the last tag. This is the gate that aborts
+# when there are no user-facing commits, so run it BEFORE mutating any
+# version files - a failure here then leaves a clean tree instead of
+# stranding a half-applied version bump with no tag. ArtifactPaths matches
+# the release-notes filter in .github/workflows/release.yml.
+$changelogPath = Join-Path $repoRoot 'CHANGELOG.md'
+$hasExistingTags = git tag -l 2>$null
+if (-not $hasExistingTags) {
+    # First release - ensure a baseline CHANGELOG exists
+    if (-not (Test-Path $changelogPath)) {
+        $date = Get-Date -Format 'yyyy-MM-dd'
+        "# Changelog`n`n## [$newVersion] - $date`n`nFirst release.`n" | Set-Content $changelogPath
+    }
+} else {
+    try {
+        New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $newVersion -ArtifactPaths @(
+            'src/', 'camera_hook.asm', 'CMakeLists.txt', 'cameraunlock-core',
+            'scripts/install.cmd', 'scripts/uninstall.cmd'
+        ) | Out-Null
+    } catch {
+        if (-not $Force) {
+            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "No user-facing changes to release. Re-run with -Force for a maintenance release." -ForegroundColor Yellow
+            exit 1
+        }
+        Write-Host "No user-facing commits since last tag - writing maintenance entry (-Force)." -ForegroundColor Yellow
+        Add-MaintenanceChangelogEntry -Path $changelogPath -NewVersion $newVersion
+    }
+}
 
 # Update CMakeLists.txt (canonical)
 $cmake = Get-Content $cmakePath -Raw
@@ -75,14 +124,6 @@ Set-Content -Path $manifestPath -Value $manifest -NoNewline
 Write-Host "Building release..." -ForegroundColor Cyan
 & pixi run build
 if ($LASTEXITCODE -ne 0) { throw "pixi run build failed (exit $LASTEXITCODE)" }
-
-# Changelog from commits since the last tag. ArtifactPaths matches the
-# release-notes filter in .github/workflows/release.yml.
-$changelogPath = Join-Path $repoRoot 'CHANGELOG.md'
-New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $newVersion -ArtifactPaths @(
-    'src/', 'camera_hook.asm', 'CMakeLists.txt', 'cameraunlock-core',
-    'scripts/install.cmd', 'scripts/uninstall.cmd'
-) | Out-Null
 
 # Commit version bump + changelog. Message must start with "Release v" so
 # build.yml's skip condition leaves this commit to release.yml.
