@@ -30,3 +30,4 @@ uninstall = "scripts\\uninstall.cmd /y"
 release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1" }
 
 [dependencies]
+cmake = ">=3.27,<4"
