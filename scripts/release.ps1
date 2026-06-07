@@ -63,6 +63,14 @@ if ($installCmd -notmatch 'set "MOD_VERSION=[^"]+"') { throw "MOD_VERSION line n
 $installCmd = $installCmd -replace 'set "MOD_VERSION=[^"]+"', "set `"MOD_VERSION=$newVersion`""
 Set-Content -Path $installCmdPath -Value $installCmd -NoNewline
 
+# Mirror into launcher-manifest.json (the file the launcher reads). The only
+# version key is mod_info.version (four-space indent); stamp it in place.
+$manifestPath = Join-Path $repoRoot 'launcher-manifest.json'
+$manifest = Get-Content $manifestPath -Raw
+if ($manifest -notmatch '(?m)^    "version":\s*"[^"]+"') { throw "mod_info.version line not found in $manifestPath" }
+$manifest = $manifest -replace '(?m)^(    "version":\s*)"[^"]+"', "`${1}`"$newVersion`""
+Set-Content -Path $manifestPath -Value $manifest -NoNewline
+
 # Build
 Write-Host "Building release..." -ForegroundColor Cyan
 & pixi run build
@@ -78,7 +86,7 @@ New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $newVersion -Art
 
 # Commit version bump + changelog. Message must start with "Release v" so
 # build.yml's skip condition leaves this commit to release.yml.
-foreach ($f in @($cmakePath, $pixiPath, $installCmdPath, $changelogPath)) {
+foreach ($f in @($cmakePath, $pixiPath, $installCmdPath, $manifestPath, $changelogPath)) {
     git add $f
     if ($LASTEXITCODE -ne 0) { throw "git add failed for $f" }
 }

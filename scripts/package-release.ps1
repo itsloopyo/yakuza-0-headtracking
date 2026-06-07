@@ -44,6 +44,13 @@ Copy-Item $asi $pluginsDir
 Copy-Item (Join-Path $scriptDir 'install.cmd') $stageDir
 Copy-Item (Join-Path $scriptDir 'uninstall.cmd') $stageDir
 
+# Launcher manifest: the contract the launcher consumes to detect, verify and
+# migrate this package. Must sit at the release ZIP root under the exact name
+# the launcher looks for (launcher-manifest.json - see AGENTS.md "Manifest First").
+$manifest = Join-Path $projectDir 'launcher-manifest.json'
+if (-not (Test-Path $manifest)) { throw "launcher-manifest.json missing at $manifest" }
+Copy-Item $manifest $stageDir
+
 $vendorStage = Join-Path $stageDir 'vendor/ultimate-asi-loader'
 New-Item -ItemType Directory -Path $vendorStage -Force | Out-Null
 Copy-Item $vendorAsi $vendorStage
