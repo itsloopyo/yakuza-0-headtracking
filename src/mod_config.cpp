@@ -52,6 +52,10 @@ std::wstring LogFilePath() {
     return ModuleSiblingPathW(L"Yakuza0HeadTracking.log");
 }
 
+std::wstring PrevLogFilePath() {
+    return ModuleSiblingPathW(L"Yakuza0HeadTracking.prev.log");
+}
+
 Config LoadConfig() {
     Config cfg;
     const std::string path = ModuleSiblingPathA("Yakuza0HeadTracking.ini");

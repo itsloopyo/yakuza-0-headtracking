@@ -25,7 +25,7 @@
 :: --- CONFIG BLOCK ---
 set "GAME_ID=yakuza-0"
 set "MOD_DISPLAY_NAME=Yakuza 0 Head Tracking"
-set "MOD_DLLS=Yakuza0HeadTracking.asi Yakuza0HeadTracking.log Yakuza0HeadTracking.ini"
+set "MOD_DLLS=Yakuza0HeadTracking.asi Yakuza0HeadTracking.log Yakuza0HeadTracking.prev.log Yakuza0HeadTracking.ini"
 set "MOD_INTERNAL_NAME=Yakuza0HeadTracking"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"

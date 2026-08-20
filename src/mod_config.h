@@ -16,5 +16,6 @@ Config LoadConfig();
 
 // Absolute path of the mod's log file, next to the mod DLL.
 std::wstring LogFilePath();
+std::wstring PrevLogFilePath();
 
 }  // namespace yakuza0

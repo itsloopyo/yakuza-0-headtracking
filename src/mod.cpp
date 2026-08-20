@@ -31,11 +31,17 @@ using cameraunlock::math::Vec3;
 
 UdpReceiver                       g_receiver;
 HeadTrackingSession<UdpReceiver>  g_session{g_receiver};
+// This mod leaves both smoothing values at the session defaults (local 0.0,
+// remote 0.15), so the receiver's connection classification is the only thing
+// that ever selects between them. Without IsRemoteConnection() the session
+// silently reports every tracker as local and pins remote users to
+// LocalSmoothing forever, with nothing at the call site to show it.
+static_assert(decltype(g_session)::kHasRemoteConnection,
+              "receiver must expose IsRemoteConnection() or remote smoothing never applies");
 cameraunlock::time::FrameClock    g_clock;
 cameraunlock::input::HotkeyPoller g_hotkeys;
 
 std::atomic<bool> g_modEnabled{true};
-std::atomic<bool> g_recenterRequested{false};
 
 // Yaw application mode; see ApplyHeadPose in view_math.h for the two modes.
 std::atomic<bool> g_worldSpaceYaw{true};
@@ -44,10 +50,6 @@ void RegisterHotkeys(const Config& cfg) {
     using cameraunlock::input::ChordGuarded;
     using cameraunlock::input::NavGuarded;
 
-    auto recenter = [] {
-        g_recenterRequested.store(true, std::memory_order_release);
-        log::Line("hotkey: recenter requested");
-    };
     auto toggle = [] {
         const bool now = !g_modEnabled.load(std::memory_order_relaxed);
         g_modEnabled.store(now, std::memory_order_relaxed);
@@ -68,19 +70,39 @@ void RegisterHotkeys(const Config& cfg) {
         log::Line("hotkey: yaw mode -> %s", now ? "world-space (horizon-locked)" : "camera-local");
     };
 
-    g_hotkeys.SetRecenterKey(VK_HOME, NavGuarded(recenter));
     g_hotkeys.SetToggleKey(VK_END, NavGuarded(toggle));
     g_hotkeys.AddHotkey(VK_PRIOR, NavGuarded(cycleMode));
     g_hotkeys.AddHotkey(cfg.yawModeKey, NavGuarded(toggleYawMode));
-    g_hotkeys.AddHotkey('T', ChordGuarded(recenter));
     g_hotkeys.AddHotkey('Y', ChordGuarded(toggle));
     g_hotkeys.AddHotkey('G', ChordGuarded(cycleMode));
     g_hotkeys.AddHotkey('H', ChordGuarded(toggleYawMode));
+
+    if constexpr (telemetry::kEnabled) {
+        g_hotkeys.AddHotkey('U', ChordGuarded([] { telemetry::ResetMatrixDumps(); }));
+    }
 }
 
 void InitThread() {
+    // Keep one previous generation: the session worth diagnosing is usually the
+    // one that just crashed, and the user relaunches the game before sending it.
+    DWORD rotateError = 0;
+    // Named, not temporaries in the condition: they are destroyed at the end of
+    // the if-condition, so the deallocation runs before GetLastError() below.
+    const std::wstring logPathW = LogFilePath();
+    const std::wstring prevPathW = PrevLogFilePath();
+    if (!MoveFileExW(logPathW.c_str(), prevPathW.c_str(),
+                     MOVEFILE_REPLACE_EXISTING)) {
+        rotateError = GetLastError();
+    }
     log::Open(LogFilePath());
     log::Line("Yakuza0HeadTracking 0.0.0 starting up");
+    // The open above truncates, so a failed rotation has already destroyed the
+    // generation the rotation existed to keep. Say so instead of losing it
+    // silently. A missing source file is the ordinary first-run case.
+    if (rotateError != 0 && rotateError != ERROR_FILE_NOT_FOUND) {
+        log::Line("init: could not rotate the previous log (error %lu) - the previous session's log was overwritten",
+                  rotateError);
+    }
 
     const Config cfg = LoadConfig();
     g_worldSpaceYaw.store(cfg.worldSpaceYaw, std::memory_order_relaxed);
@@ -128,11 +150,6 @@ void InitThread() {
 // cannot be applied this frame.
 bool InjectTracking(CameraState* state, float& poseYaw, float& posePitch, float& poseRoll,
                     bool& udpFresh) {
-    if (g_recenterRequested.exchange(false, std::memory_order_acq_rel)) {
-        g_session.Recenter();
-        log::Line("recentered");
-    }
-
     if (!g_session.Update(g_clock.Tick())) return false;
     udpFresh = true;
     if (!g_session.GetRotation(poseYaw, posePitch, poseRoll)) return false;

@@ -119,16 +119,33 @@ void TrackCameraActivity(uintptr_t vtRva) {
     g_windowStartUs = nowUs;
 }
 
-// --- 1Hz state dump ----------------------------------------------------------
+// --- Periodic state dump -----------------------------------------------------
 std::atomic<uint64_t> g_hookFires{0};
 std::atomic<int64_t>  g_lastTelemetryUs{0};
+std::atomic<int>      g_telemetryDumps{0};
 
 // The engine rebuilds the view matrix at this offset inside the camera object
 // every frame, FROM the spilled focus/up/position vectors we modify.
 constexpr ptrdiff_t kViewMatrixOffset = 0x110;
-constexpr int64_t kTelemetryIntervalUs = 1000000;
+// 5s rather than 1s: the "cam:"/"inj:" pair is ~280 bytes, so a 1s cadence put
+// roughly 1 MB an hour into the file a user is asked to send, burying the
+// startup chain that answers the actual bug report. 5s still shows the hook
+// firing, the pose moving and injection switching on and off.
+constexpr int64_t kTelemetryIntervalUs = 5000000;
+// The raw view matrix is reverse-engineering data, not diagnostics, and at 16
+// floats a line it is the single largest contributor. The engine rebuilds it
+// from the vectors logged above, so a startup sample is all it can tell us.
+// A fixed startup window is unreachable on a build where the camera object
+// resolves late, and correlating the matrix against head motion needs samples
+// while the player moves. Ctrl+Shift+U re-arms it (telemetry builds only).
+constexpr int kMaxMatrixDumps = 10;
 
 }  // namespace
+
+void ResetMatrixDumps() {
+    g_telemetryDumps.store(0, std::memory_order_relaxed);
+    log::Line("mtx: dump budget reset - next %d telemetry ticks log the view matrix", kMaxMatrixDumps);
+}
 
 void SetModuleBase(uintptr_t moduleBase) {
     g_moduleBase = moduleBase;
@@ -172,7 +189,11 @@ void LogFrameState(const CameraState* state, uintptr_t vtRva,
                   state->up[0], state->up[1], state->up[2]);
     }
 
-    if (state->cameraObj) {
+    // The budget is spent only on ticks that actually write a matrix. Counting
+    // the ones that cannot (camera object not resolved yet) exhausted it before
+    // a single "mtx:" line reached the log, with nothing saying why.
+    if (state->cameraObj &&
+        g_telemetryDumps.fetch_add(1, std::memory_order_relaxed) < kMaxMatrixDumps) {
         const float* m = reinterpret_cast<const float*>(
             static_cast<const uint8_t*>(state->cameraObj) + kViewMatrixOffset);
         log::Line("mtx: %.4f %.4f %.4f %.4f | %.4f %.4f %.4f %.4f | %.4f %.4f %.4f %.4f | %.4f %.4f %.4f %.4f",

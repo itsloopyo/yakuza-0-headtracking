@@ -26,6 +26,10 @@ constexpr bool kEnabled = CUL_CAMERA_TELEMETRY != 0;
 // before the hook can fire.
 void SetModuleBase(uintptr_t moduleBase);
 
+// Re-arms the "mtx:" dump budget. Bound to Ctrl+Shift+U in telemetry builds so
+// the matrix can be sampled while the player moves, not only at startup.
+void ResetMatrixDumps();
+
 // Module-relative RVA of the camera object's vtable, or 0 for a null camera.
 // The vtable RVA is the per-type discriminator used by the gameplay-camera
 // allow-list (RTTI is stripped from the retail EXE).

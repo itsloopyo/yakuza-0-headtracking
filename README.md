@@ -80,10 +80,11 @@ Two equivalent binding sets - use whichever your keyboard has:
 
 | Action              | Nav-cluster | Chord           |
 |---------------------|-------------|-----------------|
-| Recenter            | `Home`      | `Ctrl+Shift+T`  |
 | Toggle tracking     | `End`       | `Ctrl+Shift+Y`  |
 | Cycle tracking mode | `Page Up`   | `Ctrl+Shift+G`  |
 | Toggle yaw mode     | `Page Down` | `Ctrl+Shift+H`  |
+
+There is no recenter key. The mod applies the pose your tracker sends as-is, so centre it in the tracker app: OpenTrack's Center bind, or the CENTER button in Headcam.
 
 `Page Up` / `Ctrl+Shift+G` cycles tracking mode:
 
@@ -116,6 +117,7 @@ YawModeKey=0x22
 **Mod not loading:**
 
 - Check for `Yakuza0HeadTracking.log` in `media\` next to `Yakuza0.exe` after launching the game. If it's missing, the ASI loader isn't engaging; re-run `install.cmd`.
+- The log is rewritten from scratch on every launch and the launch before it is kept as `Yakuza0HeadTracking.prev.log`, so it is safe to attach as-is. `udp: First UDP packet received` is the line that confirms your tracker's data reached the game.
 - Verify both `winmm.dll` and `Yakuza0HeadTracking.asi` are in `media\`.
 
 **No tracking response:**

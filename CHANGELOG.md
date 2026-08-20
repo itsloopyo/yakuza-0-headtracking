@@ -7,6 +7,9 @@ below; a dated entry is added when a versioned release is cut.
 ## [Unreleased]
 
 ### Added
+- Single previous log generation: the launch before the current one is kept as
+  `Yakuza0HeadTracking.prev.log`, so a crash the user only fetches the log for
+  after relaunching is still diagnosable.
 - Initial repo scaffold from cameraunlock-core templates (C++ ASI mod).
 - Ultimate ASI Loader install/uninstall scripts.
 - CMake project producing `Yakuza0HeadTracking.asi`.
@@ -33,14 +36,34 @@ below; a dated entry is added when a versioned release is cut.
   runtime and persisted via INI.
 - Runtime tracking-mode cycling: rotation + position / rotation only /
   position only.
-- OpenTrack UDP receiver on `127.0.0.1:4242` via cameraunlock-core's
-  `UdpReceiver`, driving `HeadTrackingSession` (processor + position
-  processor) with the doctrine baseline smoothing floor (0.15).
+- OpenTrack UDP receiver on port 4242 via cameraunlock-core's `UdpReceiver`,
+  driving `HeadTrackingSession` (processor + position processor). The socket
+  binds all interfaces (`INADDR_ANY`), so a phone or other device on the LAN
+  can send to it directly.
 - INI config (`Yakuza0HeadTracking.ini`, written next to the .asi) for
   `WorldSpaceYaw` and `YawModeKey`, with virtual-key-range validation.
-- Hotkeys: Home (recenter), End (toggle), Page Up (cycle tracking mode),
-  Page Down (toggle yaw mode), plus Ctrl+Shift+T / Y / G / H chord
-  equivalents. Polled at ~60 Hz on a background thread.
+- Hotkeys: End (toggle), Page Up (cycle tracking mode), Page Down (toggle yaw
+  mode), plus Ctrl+Shift+Y / G / H chord equivalents. Polled at ~60 Hz on a
+  background thread.
 - File logger at `Yakuza0HeadTracking.log` next to the .asi.
 - Camera telemetry build switch for per-fire frame-state logging during
   reverse engineering.
+
+### Changed
+- The mod keeps no centre of its own and applies the tracker pose as sent. There
+  is no recenter hotkey; centre in your tracker app instead (OpenTrack's Center
+  bind, or the CENTER button in Headcam). A mod-side centre sat in series with
+  the tracker's own and the two drifted apart.
+- The periodic camera state dump moved from every second to every five, and
+  the raw view matrix line is now written only for the first ten dumps. At the
+  old cadence the three lines put roughly 1.7 MB an hour into the log a user is
+  asked to send, burying the startup chain.
+- Tracking smoothing no longer has an enforced floor. Every connection used
+  to get the doctrine baseline of 0.15; smoothing is now picked per
+  connection from the packet source address, 0.0 for a tracker on this
+  machine and 0.15 for a remote device. Users on a local tracker will feel
+  this: input is lower latency but also less damped, and because the mod
+  exposes no smoothing key there is no way to opt back into the old 0.15
+  floor. That per-connection choice is only meaningful because the receiver
+  binds all interfaces, which it has always done; an earlier entry here
+  described it as loopback-only, which was never true.
