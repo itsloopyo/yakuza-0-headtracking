@@ -33,4 +33,8 @@ uninstall = "scripts\\uninstall.cmd /y"
 release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1" }
 
 [dependencies]
-cmake = ">=3.27,<4"
+# CMake 4.1 is the first release that knows the "Visual Studio 18 2026"
+# generator. The windows runner image ships VS 18 only, so CMake 3.x finds no
+# VS at all and silently falls back to NMake Makefiles, which then fails on
+# the -A x64 platform argument.
+cmake = ">=4.4.1,<4.4.2"
