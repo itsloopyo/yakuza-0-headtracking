@@ -54,9 +54,15 @@ Copy-Item $manifest $stageDir
 $vendorStage = Join-Path $stageDir 'vendor/ultimate-asi-loader'
 New-Item -ItemType Directory -Path $vendorStage -Force | Out-Null
 Copy-Item $vendorAsi $vendorStage
+# The loader binary is redistributed here, so its MIT notice must travel with
+# it. Throw rather than guard with Test-Path: a silently skipped licence turns
+# a compliance failure into a green build.
 foreach ($f in 'LICENSE','README.md') {
     $src = Join-Path $projectDir "vendor/ultimate-asi-loader/$f"
-    if (Test-Path $src) { Copy-Item $src $vendorStage }
+    if (-not (Test-Path $src)) {
+        throw "Vendored loader notice missing: vendor/ultimate-asi-loader/$f - the loader DLL cannot ship without it"
+    }
+    Copy-Item $src $vendorStage
 }
 
 # find-game.ps1's release-ZIP layout expects GamePathDetection.psm1 and
@@ -71,7 +77,10 @@ foreach ($rel in 'scripts/find-game.ps1','powershell/GamePathDetection.psm1','da
 
 foreach ($doc in 'README.md','LICENSE','CHANGELOG.md','THIRD-PARTY-NOTICES.md') {
     $src = Join-Path $projectDir $doc
-    if (Test-Path $src) { Copy-Item $src $stageDir }
+    if (-not (Test-Path $src)) {
+        throw "Required notice file not found: $doc. Every published ZIP is a binary distribution and must carry it."
+    }
+    Copy-Item $src $stageDir
 }
 
 $installerZip = Join-Path $releaseDir "Yakuza0HeadTracking-v$version-installer.zip"
@@ -92,6 +101,17 @@ Copy-Item $asi $nexusMediaDir
 
 $nexusZip = Join-Path $releaseDir "Yakuza0HeadTracking-v$version-nexus.zip"
 if (Test-Path $nexusZip) { Remove-Item $nexusZip -Force }
+# The Nexus ZIP is a binary distribution too: the licences of everything
+# compiled into or bundled with the payload require their notices to travel
+# with it, so LICENSE and THIRD-PARTY-NOTICES.md ship at its root.
+foreach ($noticeDoc in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'README.md')) {
+    $noticeSrc = Join-Path $projectDir $noticeDoc
+    if (-not (Test-Path $noticeSrc)) {
+        throw "Required notice file not found: $noticeDoc. Every published ZIP is a binary distribution and must carry it."
+    }
+    Copy-Item $noticeSrc -Destination $nexusStage -Force
+    Write-Host "  $noticeDoc" -ForegroundColor Green
+}
 Compress-Archive -Path (Join-Path $nexusStage '*') -DestinationPath $nexusZip -Force
 Remove-Item $nexusStage -Recurse -Force
 

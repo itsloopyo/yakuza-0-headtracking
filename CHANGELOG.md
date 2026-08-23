@@ -13,9 +13,11 @@ below; a dated entry is added when a versioned release is cut.
 - Initial repo scaffold from cameraunlock-core templates (C++ ASI mod).
 - Ultimate ASI Loader install/uninstall scripts.
 - CMake project producing `Yakuza0HeadTracking.asi`.
-- Reverse-engineering notes for the camera hook in `.lab/camera-analysis.md`
-  (lifted from etra0/yakuza-freecam, byte-verified against the current
-  Steam build).
+- Reverse-engineering notes for the camera hook, kept locally and not
+  distributed. The hook site RVA and the register meaning at it are findings
+  published by etra0/yakuza-freecam (MIT); no code was copied from it, and the
+  byte signature we scan for was read off our own copy of the current Steam
+  build. See THIRD-PARTY-NOTICES.md for the full breakdown.
 - Yakuza 0 added to `cameraunlock-core/data/games.json`.
 - Camera hook via runtime pattern scan (RVA logged on match, not pinned):
   5-byte detour into a near-page thunk and naked MASM trampoline

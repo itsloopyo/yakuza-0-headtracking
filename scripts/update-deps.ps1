@@ -67,14 +67,20 @@ try {
         }
     }
 
-    Copy-Item $tempDll $vendorAsiDll -Force
-
-    if ($licenseText) {
-        Set-Content -Path $licensePath -Value $licenseText -Encoding UTF8
-    } else {
+    # Resolve the licence BEFORE the new DLL lands. Writing the binary first
+    # means a failed licence fetch leaves a new loader beside the previous
+    # version's notice - a mismatch that still passes every later check.
+    # Upstream's file is lowercase 'license'; the uppercase path 404s.
+    if (-not $licenseText) {
         $licenseUrl = "https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/$($meta.Tag)/license"
-        Invoke-WebRequest -Uri $licenseUrl -OutFile $licensePath -UseBasicParsing -TimeoutSec 30 -Headers @{ "User-Agent" = "CameraUnlock-HeadTracking" }
+        $licenseText = (Invoke-WebRequest -Uri $licenseUrl -UseBasicParsing -TimeoutSec 30 -Headers @{ "User-Agent" = "CameraUnlock-HeadTracking" }).Content
     }
+    if ([string]::IsNullOrWhiteSpace($licenseText)) {
+        throw "Could not obtain the Ultimate ASI Loader licence for $($meta.Tag). The loader cannot be vendored without it; vendor/ultimate-asi-loader left unchanged."
+    }
+
+    Copy-Item $tempDll $vendorAsiDll -Force
+    Set-Content -Path $licensePath -Value $licenseText -Encoding UTF8
 
     $readme = @(
         '# Ultimate ASI Loader (vendored)',
