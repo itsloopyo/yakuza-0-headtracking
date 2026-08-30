@@ -7,6 +7,8 @@ $ProgressPreference = 'SilentlyContinue'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Split-Path -Parent $scriptDir
 
+Import-Module (Join-Path $projectDir 'cameraunlock-core\powershell\ReleaseWorkflow.psm1') -Force
+
 # Canonical version source: CMakeLists.txt project(... VERSION X.Y.Z).
 $cmake = Join-Path $projectDir 'CMakeLists.txt'
 $match = Select-String -Path $cmake -Pattern 'project\([^)]*VERSION\s+(\d+\.\d+\.\d+)' | Select-Object -First 1
@@ -65,15 +67,12 @@ foreach ($f in 'LICENSE','README.md') {
     Copy-Item $src $vendorStage
 }
 
-# find-game.ps1's release-ZIP layout expects GamePathDetection.psm1 and
-# games.json co-located in shared/ (see layout 2 in find-game.ps1).
-$sharedDir = Join-Path $stageDir 'shared'
-New-Item -ItemType Directory -Path $sharedDir -Force | Out-Null
-foreach ($rel in 'scripts/find-game.ps1','powershell/GamePathDetection.psm1','data/games.json') {
-    $src = Join-Path $projectDir "cameraunlock-core/$rel"
-    if (-not (Test-Path $src)) { throw "Shared bundle file missing: $src - cameraunlock-core checkout is incomplete" }
-    Copy-Item $src $sharedDir
-}
+# install.cmd and uninstall.cmd are thin wrappers: the body they call lives in
+# shared/ at the ZIP root, and without it the installer aborts at its own layout
+# check and exits 1 on every run. Copy-SharedBundle stages every body there,
+# alongside find-game.ps1, GamePathDetection.psm1 and games.json at the paths
+# find-game.ps1 actually looks in.
+Copy-SharedBundle -StagingDir $stageDir
 
 foreach ($doc in 'README.md','LICENSE','CHANGELOG.md','THIRD-PARTY-NOTICES.md') {
     $src = Join-Path $projectDir $doc
