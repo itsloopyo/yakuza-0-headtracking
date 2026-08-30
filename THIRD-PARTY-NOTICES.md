@@ -13,7 +13,7 @@ does record about the game is described under "Yakuza 0" below.
 | Component | Version | Licence | How it ships |
 |-----------|---------|---------|--------------|
 | Ultimate ASI Loader | v9.7.2 | MIT | Bundled verbatim in the installer ZIP |
-| cameraunlock-core | 3465659888b2270addac9de0b2a728f59a00360c | MIT | Compiled into `Yakuza0HeadTracking.asi` |
+| cameraunlock-core | 0f7a63455ddeb91677c9268e88fd35833aa77359 | MIT | Compiled into `Yakuza0HeadTracking.asi` |
 | OpenTrack | n/a | ISC | Not bundled, not linked; UDP wire format only |
 | etra0/yakuza-freecam | n/a | MIT | Not bundled, not linked; reverse-engineering findings only |
 
@@ -61,7 +61,7 @@ SOFTWARE.
 Git submodule at `cameraunlock-core/`, compiled into `Yakuza0HeadTracking.asi`. Our own code,
 MIT licensed, reproduced here so the notices are complete.
 
-- Pinned commit: `3465659888b2270addac9de0b2a728f59a00360c`
+- Pinned commit: `0f7a63455ddeb91677c9268e88fd35833aa77359`
 
 ```
 MIT License
