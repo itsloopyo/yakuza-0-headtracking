@@ -132,9 +132,9 @@ constexpr ptrdiff_t kViewMatrixOffset = 0x110;
 // startup chain that answers the actual bug report. 5s still shows the hook
 // firing, the pose moving and injection switching on and off.
 constexpr int64_t kTelemetryIntervalUs = 5000000;
-// The raw view matrix is reverse-engineering data, not diagnostics, and at 16
-// floats a line it is the single largest contributor. The engine rebuilds it
-// from the vectors logged above, so a startup sample is all it can tell us.
+// The raw view matrix is not diagnostics, and at 16 floats a line it is the
+// single largest contributor. The engine rebuilds it from the vectors logged
+// above, so a startup sample is all it can tell us.
 // A fixed startup window is unreachable on a build where the camera object
 // resolves late, and correlating the matrix against head motion needs samples
 // while the player moves. Ctrl+Shift+U re-arms it (telemetry builds only).

@@ -208,7 +208,7 @@ MIT License - see [LICENSE](LICENSE) for details. Third-party components are lis
 - Ryu Ga Gotoku Studio / Sega for Yakuza 0.
 - [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) (MIT).
 - [OpenTrack](https://github.com/opentrack/opentrack) (ISC).
-- [etra0/yakuza-freecam](https://github.com/etra0/yakuza-freecam) (MIT) for the camera-hook reverse-engineering reference.
+- [etra0/yakuza-freecam](https://github.com/etra0/yakuza-freecam) (MIT) for the published camera-hook findings this mod builds on.
 - [CameraUnlock core](https://github.com/itsloopyo/cameraunlock-core) shared library.
 
 ## Disclaimer
