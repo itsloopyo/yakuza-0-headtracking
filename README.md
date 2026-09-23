@@ -14,7 +14,7 @@ An unofficial head tracking mod for Yakuza 0 that moves the camera with your hea
 ## Features
 
 - **Head-driven camera** - the hook rewrites the camera's focus, up vector and position; the mouse and controller are left alone.
-- **Takes OpenTrack UDP pose data** - port 4242, the standard 48-byte OpenTrack datagram.
+- **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
 - **World-space or camera-local yaw** - horizon-locked yaw by default, toggleable in-game.
 
 ## Requirements
@@ -24,6 +24,13 @@ An unofficial head tracking mod for Yakuza 0 that moves the camera with your hea
 - Windows 10/11, 64-bit.
 
 ## Installation
+
+### Lopari
+
+Once this mod is available in Lopari, download [Lopari](https://lopari.app), choose **Yakuza 0**, and click
+**Play with head tracking**.
+
+### Standalone Installer
 
 1. Download the latest `Yakuza0HeadTracking-vX.Y.Z-installer.zip` from [Releases](https://github.com/itsloopyo/yakuza-0-headtracking/releases).
 2. Extract it anywhere.
