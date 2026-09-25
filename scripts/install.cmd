@@ -18,6 +18,10 @@ set "MOD_VERSION=0.0.0"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"
 set "ASI_LOADER_NAME=winmm.dll"
+:: Files copied only when they are not already there, so an upgrade keeps
+:: whatever the user tuned. Listing an .ini in MOD_DLLS instead puts it through
+:: the unconditional copy and resets every key on every update.
+set "MOD_SEED_FILES="
 set "MOD_CONTROLS=Controls: End toggle, Page Up cycle tracking mode, Page Down toggle yaw mode (or Ctrl+Shift+Y / Ctrl+Shift+G / Ctrl+Shift+H)."
 :: --- END CONFIG BLOCK ---
 
