@@ -2,20 +2,13 @@
 
 ![Yakuza 0 running with this mod](https://raw.githubusercontent.com/itsloopyo/yakuza-0-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for Yakuza 0 that moves the camera with your head while your mouse or controller keeps aiming, driven by OpenTrack over UDP, with no VR headset required.
-
-> [!CAUTION]
-> ## Experimental prototype - expect missing core features
->
-> This is **not** a finished mod.
->
-> Current builds may only test whether head tracking can drive the camera. Bug fixes and core features like decoupled look/aim, independent reticle behavior, correct shot direction, off-screen reticle support, movement handling, and comfort tuning may be missing at this early stage of development.
+An unofficial head tracking mod for Yakuza 0 that moves the camera with your head while your mouse or controller keeps control of movement, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
-- **Head-driven camera** - the hook rewrites the camera's focus, up vector and position; the mouse and controller are left alone.
+- **Decoupled look and movement** - your head moves the camera, your mouse and controller work as they always did
+- **6DOF tracking** - rotation and positional lean
 - **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
-- **World-space or camera-local yaw** - horizon-locked yaw by default, toggleable in-game.
 
 ## Requirements
 
@@ -27,7 +20,7 @@ An unofficial head tracking mod for Yakuza 0 that moves the camera with your hea
 
 ### Lopari
 
-Once this mod is available in Lopari, download [Lopari](https://lopari.app), choose **Yakuza 0**, and click
+Download [Lopari](https://lopari.app), choose **Yakuza 0**, and click
 **Play with head tracking**.
 
 ### Standalone Installer
