@@ -97,3 +97,7 @@ docker-compose*.yml text eol=lf
 *.jar binary
 *.war binary
 *.ear binary
+
+# The config differential test's inputs and the committed canonical config are
+# compared byte for byte, CRLF included.
+tests/config_differential/data/** -text

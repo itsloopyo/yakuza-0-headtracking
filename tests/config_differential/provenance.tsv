@@ -1,0 +1,22 @@
+# What the differential test compares, and where each file came from.
+# Columns: role, source (commit:path, or the path in this repo), sha256 of the text with CR removed.
+# The rolling dev pre-release (0.0.0-nightly.20260820.24bc0ea, commit 24bc0ea) is the only
+# published build. No v* release was published, and no predecessor repo shipped this mod. No
+# release ZIP or launcher manifest shipped or seeded a Yakuza0HeadTracking.ini: every player's
+# file is the one LoadConfig wrote on the first run, edited or not.
+# The reader was frozen at fb48e64, whose src/mod_config.cpp, src/mod_config.h, src/logging.h and
+# src/mod.cpp are 24bc0ea's byte for byte; only the core pin moved (3465659 to d65a1c4). Every
+# core source either reader compiles holds the same bytes at both pins, so comparison 1 finds no
+# difference.
+published reader	24bc0ea:src/mod_config.cpp, compiled as tests/config_differential/oracle/src/mod_config.cpp	9f5031ee5a3423d4e41908ad992802c75daa225dfaa5ca7c7c79f0d1ccbd6ee1
+published reader	24bc0ea:src/mod_config.h, compiled as tests/config_differential/oracle/src/mod_config.h	f40430d11fb26c97e920bb57eef7122d8e61395db42732a44d99f9d9fa0c9b71
+published reader	24bc0ea:src/logging.h, compiled as tests/config_differential/oracle/src/logging.h	a411a77ba8c799d7886499c1b83c60a73a6871b59c3a3cce10a1b2893567226d
+published startup	24bc0ea:src/mod.cpp, transcribed in tests/config_differential/oracle/oracle_reader.cpp	5166ffa9e58923673f3b5244f9eb03de8adf9031d9393e97650001d80c1e1af4
+published core source	cameraunlock-core 3465659:cpp/include/cameraunlock/config/ini_reader.h	a7ffb44210ff59672fa97e8e5feaa2cb3e81938fcc0334a384c68bc371b3857a
+published core source	cameraunlock-core 3465659:cpp/src/config/ini_reader.cpp	e01515c2656aaf533bae4350dc45b702c3e3d4043935743dcc9bd5ea581fbe1c
+published core source	cameraunlock-core 3465659:cpp/include/cameraunlock/logging/file_log.h	43bdd2ef8554c78e5f440333463750c13b95110fe672b0b6e273244df9e7d169
+published core source	cameraunlock-core 3465659:cpp/src/logging/file_log.cpp	73c53c2baa06bbfebe8211f62678aa2b60cb95f604743d3686951ba56b87ea47
+frozen from	fb48e64:src/mod_config.cpp	9f5031ee5a3423d4e41908ad992802c75daa225dfaa5ca7c7c79f0d1ccbd6ee1
+frozen reader	src/legacy_config/legacy_config.h	c3cfe156d4f4039a69bed64df4812f79667da9072002ec8ed56ffd8bcd8af9a9
+frozen reader	src/legacy_config/legacy_config.cpp	dbbc3a90b0a909182387bc13ce0a380bb7b2f298bff7a907052aaef12ee60bf1
+input	the file 24bc0ea's LoadConfig writes on the first run (WriteDefaultIni through IniWriter, text mode, so CRLF), tests/config_differential/data/first-run-dev.ini; the test checks the oracle still writes these bytes	7502d637d57fe322c93986386d056ca789f87364ee041f4f60c21d9f2f5a2ced

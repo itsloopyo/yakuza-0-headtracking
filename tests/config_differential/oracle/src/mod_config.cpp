@@ -1,6 +1,5 @@
 #include "mod_config.h"
 
-#include "legacy_config/legacy_config.h"
 #include "logging.h"
 
 #include <cameraunlock/config/ini_reader.h>
@@ -10,6 +9,9 @@
 namespace yakuza0 {
 
 namespace {
+
+constexpr int kMinVirtualKey = 0x01;
+constexpr int kMaxVirtualKey = 0xFE;
 
 HMODULE ThisModule() {
     HMODULE self = nullptr;
@@ -55,24 +57,35 @@ std::wstring PrevLogFilePath() {
 }
 
 Config LoadConfig() {
+    Config cfg;
     const std::string path = ModuleSiblingPathA("Yakuza0HeadTracking.ini");
 
-    legacy::Config read;
-    if (!legacy::Load(path, read)) {
+    cameraunlock::IniReader ini;
+    if (!ini.Open(path)) {
         cameraunlock::IniWriter writer;
         if (!writer.Open(path)) {
             log::Line("config: could not create %s; using defaults", path.c_str());
-            return Config{};
+            return cfg;
         }
         WriteDefaultIni(writer);
         writer.Close();
         log::Line("config: wrote default %s", path.c_str());
-        return Config{};
+        return cfg;
     }
 
-    Config cfg;
-    cfg.worldSpaceYaw = read.world_space_yaw;
-    cfg.yawModeKey    = read.yaw_mode_key;
+    cfg.worldSpaceYaw = ini.ReadBool("General", "WorldSpaceYaw", true);
+    cfg.yawModeKey    = ini.ReadHex("Hotkeys", "YawModeKey", VK_NEXT);
+    // GetAsyncKeyState only accepts virtual key codes 0x01-0xFE; a corrupted or
+    // hand-edited INI ("YawModeKey=0x99999") would otherwise feed an
+    // out-of-range value to the poller, where it silently never fires. Fall
+    // back to the default rather than leaving the toggle dead.
+    if (cfg.yawModeKey < kMinVirtualKey || cfg.yawModeKey > kMaxVirtualKey) {
+        log::Line("config: YawModeKey 0x%X out of range (0x01-0xFE); using default 0x%X",
+                  cfg.yawModeKey, VK_NEXT);
+        cfg.yawModeKey = VK_NEXT;
+    }
+    log::Line("config: loaded %s (WorldSpaceYaw=%d YawModeKey=0x%X)",
+              path.c_str(), cfg.worldSpaceYaw ? 1 : 0, cfg.yawModeKey);
     return cfg;
 }
 

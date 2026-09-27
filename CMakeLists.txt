@@ -20,6 +20,7 @@ set(MOD_SOURCES
     src/dllmain.cpp
     src/mod.cpp
     src/mod_config.cpp
+    src/legacy_config/legacy_config.cpp
     src/camera_telemetry.cpp
     src/camera_hook.cpp
     camera_hook.asm
