@@ -16,7 +16,7 @@ does record about the game is described under "Yakuza 0" below.
 | MinHook | inside Ultimate ASI Loader v9.7.2 | BSD-2-Clause | Compiled into the vendored dinput8.dll |
 | injector | `f7fd18f` (inside Ultimate ASI Loader v9.7.2) | zlib | Compiled into the vendored dinput8.dll |
 | miniz | 3.0.0 (inside Ultimate ASI Loader v9.7.2) | MIT | Compiled into the vendored dinput8.dll |
-| cameraunlock-core | 29b11b62f183183295d435b7292d8c1c0a8e5cff | MIT | Compiled into `Yakuza0HeadTracking.asi` |
+| cameraunlock-core | d65a1c45d1f1ecd194308d7b7eefa077afb209cf | MIT | Compiled into `Yakuza0HeadTracking.asi` |
 | OpenTrack | n/a | ISC | Not bundled, not linked; UDP wire format only |
 | etra0/yakuza-freecam | n/a | MIT | Not bundled, not linked; published engine findings only |
 
@@ -252,7 +252,7 @@ THE SOFTWARE.
 Git submodule at `cameraunlock-core/`, compiled into `Yakuza0HeadTracking.asi`. Our own code,
 MIT licensed, reproduced here so the notices are complete.
 
-- Pinned commit: `29b11b62f183183295d435b7292d8c1c0a8e5cff`
+- Pinned commit: `d65a1c45d1f1ecd194308d7b7eefa077afb209cf`
 
 ```
 MIT License
