@@ -7,8 +7,11 @@
 #include "mod_config.h"
 #include "view_math.h"
 
+#include <cameraunlock/config/defaults_file.h>
 #include <cameraunlock/input/chord_hotkeys.h>
 #include <cameraunlock/input/hotkey_poller.h>
+#include <cameraunlock/input/key_binding_registration.h>
+#include <cameraunlock/input/key_bindings.h>
 #include <cameraunlock/protocol/udp_receiver.h>
 #include <cameraunlock/time/frame_clock.h>
 #include <cameraunlock/tracking/head_tracking_session.h>
@@ -17,8 +20,10 @@
 
 #include <atomic>
 #include <exception>
+#include <stdexcept>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace yakuza0 {
 
@@ -31,10 +36,9 @@ using cameraunlock::math::Vec3;
 
 UdpReceiver                       g_receiver;
 HeadTrackingSession<UdpReceiver>  g_session{g_receiver};
-// This mod leaves both smoothing values at the session defaults (local 0.0,
-// remote 0.15), so the receiver's connection classification is the only thing
-// that ever selects between them. Without IsRemoteConnection() the session
-// silently reports every tracker as local and pins remote users to
+// The receiver's connection classification is the only thing that selects
+// between LocalSmoothing and RemoteSmoothing. Without IsRemoteConnection() the
+// session silently reports every tracker as local and pins remote users to
 // LocalSmoothing forever, with nothing at the call site to show it.
 static_assert(decltype(g_session)::kHasRemoteConnection,
               "receiver must expose IsRemoteConnection() or remote smoothing never applies");
@@ -46,36 +50,48 @@ std::atomic<bool> g_modEnabled{true};
 // Yaw application mode; see ApplyHeadPose in view_math.h for the two modes.
 std::atomic<bool> g_worldSpaceYaw{true};
 
+std::vector<cameraunlock::input::KeyBinding> Bindings(const char* key, const std::string& list) {
+    const cameraunlock::input::KeyBindingsParseResult parsed = cameraunlock::input::ParseKeyBindings(list);
+    if (!parsed.ok()) throw std::logic_error(std::string(key) + "='" + list + "': " + parsed.error);
+    return parsed.bindings;
+}
+
 void RegisterHotkeys(const Config& cfg) {
     using cameraunlock::input::ChordGuarded;
-    using cameraunlock::input::NavGuarded;
+    using cameraunlock::input::RegisterKeyBindings;
 
+    // End changes this session only; EnableOnStartup decides the next start.
     auto toggle = [] {
         const bool now = !g_modEnabled.load(std::memory_order_relaxed);
         g_modEnabled.store(now, std::memory_order_relaxed);
         log::Line("hotkey: tracking %s", now ? "enabled" : "disabled");
     };
     auto cycleMode = [] {
+        const TrackingMode mode = g_session.CycleMode();
         const char* name = "";
-        switch (g_session.CycleMode()) {
+        switch (mode) {
             case TrackingMode::RotationAndPosition: name = "rotation + position"; break;
             case TrackingMode::RotationOnly:        name = "rotation only";       break;
             case TrackingMode::PositionOnly:        name = "position only";       break;
         }
         log::Line("hotkey: tracking mode -> %s", name);
+        config::SaveTrackingMode(mode);
     };
     auto toggleYawMode = [] {
         const bool now = !g_worldSpaceYaw.load(std::memory_order_relaxed);
         g_worldSpaceYaw.store(now, std::memory_order_relaxed);
         log::Line("hotkey: yaw mode -> %s", now ? "world-space (horizon-locked)" : "camera-local");
+        config::SaveWorldSpaceYaw(now);
     };
 
-    g_hotkeys.SetToggleKey(VK_END, NavGuarded(toggle));
-    g_hotkeys.AddHotkey(VK_PRIOR, NavGuarded(cycleMode));
-    g_hotkeys.AddHotkey(cfg.yawModeKey, NavGuarded(toggleYawMode));
-    g_hotkeys.AddHotkey('Y', ChordGuarded(toggle));
-    g_hotkeys.AddHotkey('G', ChordGuarded(cycleMode));
-    g_hotkeys.AddHotkey('H', ChordGuarded(toggleYawMode));
+    // Each list holds every key that fires its action, the Ctrl+Shift chord
+    // included. A key without modifiers stays silent while Ctrl and Shift are
+    // both held, so Ctrl+Shift+<key> reaches only a binding that names the chord.
+    RegisterKeyBindings(g_hotkeys, Bindings("ToggleKey", cfg.toggle_key), toggle);
+    RegisterKeyBindings(g_hotkeys, Bindings("CycleTrackingModeKey", cfg.cycle_tracking_mode_key), cycleMode);
+    RegisterKeyBindings(g_hotkeys, Bindings("YawModeKey", cfg.yaw_mode_key), toggleYawMode);
+    log::Line("hotkey: toggle=[%s] cycle tracking mode=[%s] yaw mode=[%s]", cfg.toggle_key.c_str(),
+              cfg.cycle_tracking_mode_key.c_str(), cfg.yaw_mode_key.c_str());
 
     if constexpr (telemetry::kEnabled) {
         g_hotkeys.AddHotkey('U', ChordGuarded([] { telemetry::ResetMatrixDumps(); }));
@@ -104,36 +120,40 @@ void InitThread() {
                   rotateError);
     }
 
-    const Config cfg = LoadConfig();
-    g_worldSpaceYaw.store(cfg.worldSpaceYaw, std::memory_order_relaxed);
+    const Config cfg = config::Load(ModuleDir(), cameraunlock::config::DefaultsFile::PerUser());
+    g_modEnabled.store(cfg.enable_on_startup, std::memory_order_relaxed);
+    g_worldSpaceYaw.store(cfg.world_space_yaw, std::memory_order_relaxed);
 
     if (!InstallCameraHook()) {
         log::Line("init: camera hook install failed; tracking disabled");
         return;
     }
 
-    // 6DOF: rotation via focus/up rewrite, position via a camera-position
-    // offset applied in the clean (pre-rotation) camera basis.
-    g_session.SetMode(TrackingMode::RotationAndPosition);
+    // Rotation via focus/up rewrite, position via a camera-position offset
+    // applied in the clean (pre-rotation) camera basis.
+    g_session.SetMode(config::StartupTrackingMode(cfg));
+    g_session.SetLocalSmoothing(cfg.local_smoothing);
+    g_session.SetRemoteSmoothing(cfg.remote_smoothing);
 
     // OpenTrack pitch-up reads as look-down in the engine's lookAt basis.
     cameraunlock::SensitivitySettings sensitivity;
     sensitivity.invert_pitch = true;
     g_session.GetProcessor().SetSensitivity(sensitivity);
 
-    // Tracker +X (lean right) and +Z (lean forward) read as the opposite
-    // directions in the engine's lookAt basis. The asymmetric Z clamp is
-    // applied after the inversion, so swap its bounds to keep the generous
-    // range on the forward lean and the restricted range on the backward.
+    // Tracker +X (lean right) reads as the opposite direction in the engine's
+    // lookAt basis. Its +Z runs the other way too, which InjectTracking flips
+    // after the processor has clamped z in the pipeline's own convention.
     cameraunlock::PositionSettings position;
     position.invert_x = true;
-    position.invert_z = true;
-    position.limit_z = 0.10f;
-    position.limit_z_back = 0.40f;
-    g_session.GetPositionProcessor().SetSettings(position);
+    position.limit_x = cfg.position_limit_x;
+    position.limit_y = cfg.position_limit_y;
+    position.limit_y_down = cfg.position_limit_y_down;
+    position.limit_z = cfg.position_limit_z;
+    position.limit_z_back = cfg.position_limit_z_back;
+    g_session.SetPositionSettings(position);
 
     g_receiver.SetLog([](const std::string& s) { log::Line("udp: %s", s.c_str()); });
-    if (!g_receiver.Start()) {
+    if (!g_receiver.Start(static_cast<uint16_t>(cfg.udp_port))) {
         log::Line("init: UDP receiver Start() did not bind immediately (retry thread may be running)");
     }
 
@@ -173,7 +193,9 @@ bool InjectTracking(CameraState* state, float& poseYaw, float& posePitch, float&
     // the offset follows body orientation, not the head-rotated view.
     float px = 0.0f, py = 0.0f, pz = 0.0f;
     if (g_session.GetPositionOffset(px, py, pz)) {
-        const Vec3 posOffset = basis.LocalToWorld(Vec3(px, py, pz));
+        // The engine's lookAt basis has +z forward; the pipeline's forward lean
+        // is -z.
+        const Vec3 posOffset = basis.LocalToWorld(Vec3(px, py, -pz));
         const Vec3 newPos = pos + posOffset;
         newFoc = newFoc + posOffset;
         state->position[0] = newPos.x;

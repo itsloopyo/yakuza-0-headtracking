@@ -71,6 +71,7 @@ if (-not (Test-SemanticVersion -Version $newVersion)) {
     throw "Resolved version '$newVersion' is not semver X.Y.Z. Usage: pixi run release <major|minor|patch|nightly|X.Y.Z>"
 }
 Write-Host "Releasing v$newVersion (current: v$currentVersion)" -ForegroundColor Cyan
+Assert-ReleaseNotBelowCanonicalSince -RepoRoot $repoRoot -Version $newVersion
 
 # Preconditions - deterministic checks, no prompts.
 $branch = (& git rev-parse --abbrev-ref HEAD).Trim()

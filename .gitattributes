@@ -101,3 +101,4 @@ docker-compose*.yml text eol=lf
 # The config differential test's inputs and the committed canonical config are
 # compared byte for byte, CRLF included.
 tests/config_differential/data/** -text
+/CameraUnlock.ini -text

@@ -8,13 +8,27 @@ target_link_libraries(yakuza0_headtracking_tests PRIVATE cameraunlock)
 
 add_test(NAME yakuza0_headtracking_tests COMMAND yakuza0_headtracking_tests)
 
+# The canonical config, the committed file and the toggles' saves. Also the
+# renderer behind `pixi run render-config` (--render-config <path>).
+add_executable(yakuza0_config_tests
+    config_tests.cpp
+    ${CMAKE_SOURCE_DIR}/src/mod_config.cpp
+    ${CMAKE_SOURCE_DIR}/src/legacy_config/legacy_config.cpp
+)
+target_include_directories(yakuza0_config_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(yakuza0_config_tests PRIVATE YAKUZA0_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(yakuza0_config_tests PRIVATE cameraunlock)
+add_test(NAME yakuza0_config_tests COMMAND yakuza0_config_tests)
+
 # The canonical config conversion's differential test: the dev pre-release's
 # reader (byte copies in config_differential/oracle/src) and startup code
-# against the frozen reader in src/legacy_config/.
+# against the frozen reader in src/legacy_config/, and that reader against the
+# config owner's migration into CameraUnlock.ini.
 set(YAKUZA0_DIFFERENTIAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/config_differential)
 add_executable(yakuza0_config_differential
     ${YAKUZA0_DIFFERENTIAL_DIR}/differential_tests.cpp
     ${YAKUZA0_DIFFERENTIAL_DIR}/oracle/oracle_reader.cpp
+    ${CMAKE_SOURCE_DIR}/src/mod_config.cpp
     ${CMAKE_SOURCE_DIR}/src/legacy_config/legacy_config.cpp
 )
 target_include_directories(yakuza0_config_differential PRIVATE
@@ -24,6 +38,13 @@ target_include_directories(yakuza0_config_differential PRIVATE
 target_compile_definitions(yakuza0_config_differential PRIVATE YAKUZA0_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(yakuza0_config_differential PRIVATE cameraunlock)
 add_test(NAME yakuza0_config_differential COMMAND yakuza0_config_differential)
+
+# Core's canonical config lint over the committed file and every file the
+# differential test migrated, which it writes beside itself under migrated\.
+add_test(NAME yakuza0_config_lint COMMAND node
+    ${YAKUZA0_DIFFERENTIAL_DIR}/lint-migrated.mjs
+    $<TARGET_FILE_DIR:yakuza0_config_differential>/migrated)
+set_tests_properties(yakuza0_config_lint PROPERTIES DEPENDS yakuza0_config_differential)
 
 # What the differential test compiles is pinned by hash, line endings aside: the
 # oracle's byte copies must stay the dev build's (git show 24bc0ea:src/<file>),
