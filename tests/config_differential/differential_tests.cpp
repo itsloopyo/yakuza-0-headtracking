@@ -335,7 +335,7 @@ void Compare(const std::vector<Input>& inputs) {
 // ---- Comparison 2 ------------------------------------------------------------------
 //
 // The migration: the config owner's Load in a folder holding only the input as
-// Yakuza0Yakuza0HeadTracking.ini, which imports it through config::Import into a new
+// Yakuza0HeadTracking.ini, which imports it through config::Import into a new
 // CameraUnlock.ini, then the canonical reader and table on that file. It must
 // start the mod exactly as the import did, apart from what core's
 // data/config-format.json approves:
@@ -349,8 +349,9 @@ void Compare(const std::vector<Input>& inputs) {
 // values are the table's defaults, which the migration writes as `default`.
 //
 // Each input with a file migrates three times: over a Defaults.ini the owner
-// creates with the built-in values, from a read-only Yakuza0Yakuza0HeadTracking.ini,
-// and over a Defaults.ini that differs from the built-in value on every row.
+// creates with the built-in values, from a read-only Yakuza0HeadTracking.ini,
+// and over a Defaults.ini that differs from the built-in value on every row,
+// the tracking-mode pair as one unit.
 // The first two give the settings the import read. A setting still at what the
 // dev build shipped, or one it had no setting for, is no player's choice (owner
 // rule of 2026-09-26), so it is written `default` and the third gives
@@ -475,8 +476,9 @@ bool LogSays(const std::vector<std::string>& log, const std::string& text) {
 }
 
 // A Defaults.ini holding a value other than the built-in one on every row the
-// table binds, so a migration that wrote `default` where the imported value is
-// not what `default` gives would read back differently over it.
+// table binds, the tracking-mode pair taken as one unit (position-only, since
+// both rows false is no mode), so a migration that wrote `default` where the
+// imported value is not what `default` gives would read back differently over it.
 const char* const kSkewedDefaults =
     "[CameraUnlock]\r\nConfigFormat=1\r\n\r\n"
     "[Network]\r\nUdpPort=5252\r\n\r\n"
