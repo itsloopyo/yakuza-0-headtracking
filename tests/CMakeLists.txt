@@ -45,6 +45,7 @@ add_test(NAME yakuza0_config_lint COMMAND node
     ${YAKUZA0_DIFFERENTIAL_DIR}/lint-migrated.mjs
     $<TARGET_FILE_DIR:yakuza0_config_differential>/migrated)
 set_tests_properties(yakuza0_config_lint PROPERTIES DEPENDS yakuza0_config_differential)
+set_tests_properties(yakuza0_config_differential yakuza0_config_lint PROPERTIES LABELS differential)
 
 # What the differential test compiles is pinned by hash, line endings aside: the
 # oracle's byte copies must stay the dev build's (git show 24bc0ea:src/<file>),

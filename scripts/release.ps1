@@ -66,6 +66,18 @@ if (-not (Test-CleanGitStatus)) { throw "Working tree is not clean. Commit or st
 $tag = "v$newVersion"
 if (Test-GitTagExists -Tag $tag) { throw "Tag $tag already exists." }
 
+Write-Host "Running the full test suite..." -ForegroundColor Cyan
+Push-Location $repoRoot
+try {
+    pixi run test
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error: pixi run test failed. Nothing was changed." -ForegroundColor Red
+        exit 1
+    }
+} finally {
+    Pop-Location
+}
+
 # Changelog from commits since the last tag. This is the gate that aborts
 # when there are no user-facing commits, so run it BEFORE mutating any
 # version files - a failure here then leaves a clean tree instead of
