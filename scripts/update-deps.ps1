@@ -22,6 +22,24 @@ if (-not (Test-Path $module)) {
 }
 Import-Module $module -Force
 
+# Not Get-FileHash: Windows PowerShell 5.1 autoloads it from a script module,
+# and a powershell.exe started from pwsh (GitHub Actions' shell: pwsh)
+# inherits pwsh's PSModulePath, resolves the Core-only
+# Microsoft.PowerShell.Utility first and reports the cmdlet as not recognized.
+function Get-Sha256Hex {
+    [OutputType([string])]
+    param([Parameter(Mandatory)][string]$LiteralPath)
+
+    $sha    = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead((Convert-Path -LiteralPath $LiteralPath))
+    try {
+        return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
+    }
+}
+
 $vendorAsiDir = Join-Path $projectDir 'vendor/ultimate-asi-loader'
 $vendorAsiDll = Join-Path $vendorAsiDir 'dinput8.dll'
 if (-not (Test-Path $vendorAsiDir)) {
@@ -53,14 +71,14 @@ try {
         }
     } finally { $zip.Dispose() }
 
-    $dllSha = (Get-FileHash -Path $tempDll -Algorithm SHA256).Hash.ToLower()
+    $dllSha = Get-Sha256Hex -LiteralPath $tempDll
 
     # Idempotency: if the vendored DLL already matches upstream, leave the tree
     # alone so a routine re-run doesn't churn README.md's fetched_at timestamp.
     $licensePath = Join-Path $vendorAsiDir 'LICENSE'
     $readmePath  = Join-Path $vendorAsiDir 'README.md'
     if ((Test-Path $vendorAsiDll) -and (Test-Path $licensePath) -and (Test-Path $readmePath)) {
-        $existingSha = (Get-FileHash -Path $vendorAsiDll -Algorithm SHA256).Hash.ToLower()
+        $existingSha = Get-Sha256Hex -LiteralPath $vendorAsiDll
         if ($existingSha -eq $dllSha) {
             Write-Host "  no change (dinput8.dll sha256=$($dllSha.Substring(0,12))... matches on-disk vendor copy)" -ForegroundColor DarkGray
             return
